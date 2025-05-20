@@ -4,6 +4,7 @@ import sys
 from datetime import datetime
 from dateutil.parser import parse, ParserError
 
+base_dir = os.path.dirname(__file__)
 
 class Task:
 
@@ -35,14 +36,14 @@ class Task:
 
 
     def to_json(self):
-        os.chdir('/Users/camer/Documents/Quant/notes/MiniProjects')
+        file_path = os.path.join(base_dir, 'tasks.json')
         try:
-            with open('tasks.json', 'r') as f:
+            with open(file_path, 'r') as f:
                 file_data = json.load(f)
         except FileNotFoundError:
             file_data = []
         file_data.append(self.dict)
-        with open('tasks.json', 'w') as f:
+        with open(file_path, 'w') as f:
             json.dump(file_data, f, indent=2)
 
 
@@ -132,21 +133,18 @@ class TaskManager:
 
 
     def save_tasks(self):
-        original = os.getcwd()
-        os.chdir('/Users/camer/Documents/Quant/notes/MiniProjects')
+        file_path = os.path.join(base_dir, 'tasks.json')
         file_data = []
         for task in self.tasks:
             file_data.append(task.dict)
             task.saved = True
-        with open('tasks.json', 'w') as f:
+        with open(file_path, 'w') as f:
             json.dump(file_data, f, indent=2)
         print('Tasks saved to tasks.json')
-        os.chdir(original)
             
 
     def load_tasks(self):
-        original = os.getcwd()
-        os.chdir('/Users/camer/Documents/Quant/notes/MiniProjects')
+        file_path = os.path.join(base_dir, 'tasks.json')
 
         def saved(x):
             return x.saved
@@ -161,7 +159,7 @@ class TaskManager:
             self.save_tasks()
 
         try:
-            with open('tasks.json', 'r') as f:
+            with open(file_path, 'r') as f:
                 file_data = json.load(f)
                 self.tasks.clear()
                 for data in file_data:
@@ -170,7 +168,6 @@ class TaskManager:
             print('Tasks loaded from tasks.json')
         except FileNotFoundError:
             print('No tasks saved.')
-        os.chdir(original)
 
 
     def exit(self):
