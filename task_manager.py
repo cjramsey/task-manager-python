@@ -75,6 +75,9 @@ class TaskManager:
     def view_tasks(self):
         if self.tasks == []:
             print('\nYou currently have no tasks.')
+        
+        elif len(self.tasks) == 1:
+            pass
 
         else:
             sort = input('Would you like to sort the tasks? (y/n): ')
@@ -153,7 +156,8 @@ class TaskManager:
             choice = input('You have unsaved changes. Save before loading new tasks? (y/n): ')
 
         if choice == 'y':
-            self.save_tasks()
+            for task in unsaved:
+                task.to_json()
 
         try:
             with open(file_path, 'r') as f:
@@ -175,6 +179,7 @@ class TaskManager:
         while True:
             self.display_menu()
             choice = input('Please select an option: ')
+            print('\n')
             action = self.choices.get(choice)
             if callable(action):
                 action()
