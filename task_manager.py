@@ -74,7 +74,7 @@ class TaskManager:
 
     def view_tasks(self):
         if self.tasks == []:
-            print('\nYou currently have no tasks. \n')
+            print('\nYou currently have no tasks.')
 
         else:
             sort = input('Would you like to sort the tasks? (y/n): ')
@@ -146,10 +146,7 @@ class TaskManager:
     def load_tasks(self):
         file_path = os.path.join(base_dir, 'tasks.json')
 
-        def saved(x):
-            return x.saved
-        
-        unsaved = list(filter(saved, self.tasks))
+        unsaved = list(filter(lambda x: not x.saved, self.tasks))
 
         choice = None
         if len(unsaved) != 0:
