@@ -1,8 +1,10 @@
-import os
+import copy
 import json
+import os
 import sys
 from datetime import datetime
 from dateutil.parser import parse, ParserError
+from itertools import filterfalse
 
 base_dir = os.path.dirname(__file__)
 
@@ -21,7 +23,9 @@ class Task:
 
 
     def __str__(self):
-        return(f'{self.title.capitalize()} - Due:  {self.due_date.strftime('%d-%m-%Y')} - Priority: {self.priority}')
+        return(f'{self.title.capitalize()} - ' \
+               f'Due:  {self.due_date.strftime('%d-%m-%Y')} - ' \
+               f'Priority: {self.priority}')
     
 
     @property
@@ -51,13 +55,15 @@ class TaskManager:
 
     def __init__(self):
         self.tasks = []
+        self.previous_state = []
         self.choices = {'1': self.view_tasks,
                         '2': self.add_task,
                         '3': self.complete_task,
                         '4': self.remove_task,
                         '5': self.save_tasks,
                         '6': self.load_tasks,
-                        '7': self.exit}
+                        '7': self.undo,
+                        '8': self.exit}
 
 
     def display_menu(self):
@@ -69,12 +75,13 @@ class TaskManager:
         '4. Delete task \n' \
         '5. Save tasks \n' \
         '6. Load tasks \n' \
-        '7  Quit')
+        '7. Undo \n' \
+        '8  Quit')
 
 
     def view_tasks(self):
-        if self.tasks == []:
-            print('\nYou currently have no tasks.')
+        if not self.tasks:
+            print('You currently have no tasks.')
         
         elif len(self.tasks) == 1:
             pass
@@ -149,10 +156,10 @@ class TaskManager:
     def load_tasks(self):
         file_path = os.path.join(base_dir, 'tasks.json')
 
-        unsaved = list(filter(lambda x: not x.saved, self.tasks))
+        unsaved = list(filterfalse(lambda x: x.saved, self.tasks))
 
         choice = None
-        if len(unsaved) != 0:
+        if unsaved:
             choice = input('You have unsaved changes. Save before loading new tasks? (y/n): ')
 
         if choice == 'y':
@@ -164,12 +171,18 @@ class TaskManager:
                 file_data = json.load(f)
                 self.tasks.clear()
                 for data in file_data:
-                    task = Task(data['title'], parse(data['due_date']), data['priority'], data['complete'], saved=True)
+                    task = Task(data['title'], parse(data['due_date']), 
+                                data['priority'], data['complete'], saved=True)
                     self.tasks.append(task)
             print('Tasks loaded from tasks.json')
         except FileNotFoundError:
             print('No tasks saved.')
 
+    
+    def undo(self):
+        self.tasks = self.previous_state.tasks
+        self.previous_state = self.previous_state.previous_state
+        print('Undo complete.')
 
     def exit(self):
         sys.exit()
@@ -180,6 +193,8 @@ class TaskManager:
             self.display_menu()
             choice = input('Please select an option: ')
             print('\n')
+            if choice not in ['5,', '6', '7', '8']:
+                self.previous_state = copy.deepcopy(self)
             action = self.choices.get(choice)
             if callable(action):
                 action()
