@@ -28,9 +28,11 @@ class Task:
 
 
     def __str__(self):
-        return(f'{self.title.capitalize()} - ' \
-               f'Due:  {self.due_date.strftime('%d-%m-%Y')} - ' \
-               f'Priority: {self.priority}')
+        return(
+            f'{self.title.capitalize()} - '
+            f'Due:  {self.due_date.strftime('%d-%m-%Y')} - '
+            f'Priority: {self.priority}'
+        )
 
 
     @property
@@ -101,8 +103,8 @@ class TaskManager:
         table.add_column('Priority', justify='center')
 
         for i, task in enumerate(tasks_, start=1):
-            complete = u'\u2713' if task._complete else ''
-            if task._complete:
+            complete = u'\u2713' if task.complete else ''
+            if task.complete:
                 style = '#00d700 bold' 
             elif task.due_date < datetime.today():
                 style = '#d70000 bold'
@@ -189,8 +191,10 @@ class TaskManager:
         unsaved = list(filterfalse(lambda x: x.saved, self.tasks))
         choice = None
         if unsaved:
-            choice = self.console.input('You have unsaved changes.' \
-                            'Save before loading new tasks? (y/n): ')
+            choice = self.console.input(
+                                'You have unsaved changes.' 
+                                'Save before loading new tasks? (y/n): '
+                                )
 
         if choice == 'y':
             for task in unsaved:
@@ -199,11 +203,11 @@ class TaskManager:
         try:
             with open(file_path, 'r') as f:
                 file_data = json.load(f)
-                self.tasks.clear()
-                for data in file_data:
-                    task = Task(data['title'], parse(data['due_date']), 
-                                data['priority'], data['complete'], saved=True)
-                    self.tasks.append(task)
+            self.tasks.clear()
+            for data in file_data:
+                task = Task(data['title'], parse(data['due_date']), 
+                            data['priority'], data['complete'], saved=True)
+                self.tasks.append(task)
             self.console.print('Tasks loaded from tasks.json')
         except FileNotFoundError:
             self.console.print('No tasks saved.')
@@ -225,7 +229,7 @@ class TaskManager:
             self.display_menu()
 
             choice = self.console.input('Please select an option: ')
-            if choice not in ['5,', '6', '7', '8']:
+            if choice not in ['1','5', '6', '7', '8']:
                 self.previous_state = copy.deepcopy(self)
             action = self.choices.get(choice)
 
