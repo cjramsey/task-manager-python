@@ -1,3 +1,4 @@
+
 import copy
 import json
 import os
@@ -6,11 +7,15 @@ from datetime import datetime
 from dateutil.parser import parse, ParserError
 from itertools import filterfalse
 
+from rich.console import Console
+from rich.table import Table
+
+
 base_dir = os.path.dirname(__file__)
 
 class Task:
 
-    def __init__(self, title, due_date, priority=1, complete=False, saved=False):
+    def __init__(self, title, due_date: datetime, priority=1, complete=False, saved=False):
         self.title = title
         self.due_date = due_date
         self.priority = priority
@@ -26,7 +31,7 @@ class Task:
         return(f'{self.title.capitalize()} - ' \
                f'Due:  {self.due_date.strftime('%d-%m-%Y')} - ' \
                f'Priority: {self.priority}')
-    
+
 
     @property
     def complete(self):
@@ -53,6 +58,27 @@ class Task:
 
 class TaskManager:
 
+    console = Console(style='bold')
+    table = Table(title='Task Manager', title_justify='center')
+
+    table.add_column('Option', justify='center')
+    table.add_column('Action')
+
+    table.add_row('1', 'View tasks' )
+    table.add_row('2', 'Add task')
+    table.add_row('3', 'Mark task as complete')
+    table.add_row('4', 'Delete tasks')
+    table.add_row('5', 'Save tasks')
+    table.add_row('6', 'Load tasks')
+    table.add_row('7', 'Undo')
+    table.add_row('8', 'Quit')
+
+
+    @classmethod
+    def display_menu(cls):
+        cls.console.print(cls.table)
+
+
     def __init__(self):
         self.tasks = []
         self.previous_state = []
@@ -64,82 +90,87 @@ class TaskManager:
                         '6': self.load_tasks,
                         '7': self.undo,
                         '8': self.exit}
+        
 
+    def print_tasks(self, tasks_):
+        table = Table(title='Tasks', title_justify='center')
+        table.add_column('No.')
+        table.add_column('Completed', justify='center')
+        table.add_column('Due Date')
+        table.add_column('Title')
+        table.add_column('Priority', justify='center')
 
-    def display_menu(self):
-        print('')
-        print(('Task Manager').center(26, '='))
-        print('1. View tasks \n' \
-        '2. Add task \n' \
-        '3. Mark task as complete \n' \
-        '4. Delete task \n' \
-        '5. Save tasks \n' \
-        '6. Load tasks \n' \
-        '7. Undo \n' \
-        '8  Quit')
+        for i, task in enumerate(tasks_, start=1):
+            complete = u'\u2713' if task._complete else ''
+            if task._complete:
+                style = '#00d700 bold' 
+            elif task.due_date < datetime.today():
+                style = '#d70000 bold'
+            else:
+                style = 'bold'
+            table.add_row(f'{i}', complete, f'{task.due_date.strftime('%d-%m-%Y')}', f'{task.title}', f'{task.priority}', style=style)
+
+        self.console.print(table)
 
 
     def view_tasks(self):
+        tasks_ = copy.copy(self.tasks)
         if not self.tasks:
-            print('You currently have no tasks.')
-        
-        elif len(self.tasks) == 1:
-            pass
-
+            self.console.print('You currently have no tasks.')
         else:
-            sort = input('Would you like to sort the tasks? (y/n): ')
+            sort = self.console.input('Would you like to sort the tasks? (y/n): ')
 
             if sort == 'y':
-                print('Sorting options:')
-                print('1. By Due Date')
-                print('2. By Priority')
-                choice = input('Enter the desired sorting option: ')
-
+                self.console.print('Sorting options:')
+                self.console.print('1. By Due Date')
+                self.console.print('2. By Priority')
+                choice = self.console.input('Enter the desired sorting option: ')
                 choices = {'1': lambda x: (x.due_date, x.priority),
                            '2': lambda x: (x.priority, x.due_date)}
-                
                 action = choices.get(choice)
                 try:
-                    self.tasks.sort(key=action)
+                    tasks_ = sorted(self.tasks, key=action)
                 except:
                     pass
-
-        for index, task in enumerate(self.tasks, start=1):
-            complete = 'X' if task._complete == True else ' '
-            print(f'[{complete}] {index}. {task}')
+            
+            self.console.print('\n')
+            self.print_tasks(tasks_)
         
 
     def add_task(self):
-        title = input('Enter title: ')
+        title = self.console.input('Enter title: ')
         while True:
             try:
-                due_date = parse(input('Enter due date: '))
+                due_date = parse(self.console.input('Enter due date: '))
                 break
             except ParserError:
-                print('Date input was invalid.')
+                self.console.print('Date input was invalid.')
 
-        priority = input('Enter priority (1=high, 2=medium, 3=low): ')
+        priority = self.console.input('Enter priority (1=high, 2=medium, 3=low): ')
         if priority == None:
             priority = 1
+
         try:
             task = Task(title, due_date, priority)
             self.tasks.append(task)
-            print('Task added.')
+            self.console.print('Task added.')
         except ValueError:
-            print('Date input was invalid.')
+            self.console.print('Date input was invalid.')
 
 
     def complete_task(self):
-        index = input('Please select which task to complete: ')
+        self.print_tasks(self.tasks)
+        index = self.console.input('Please select which task to complete: ')
         task = self.tasks[int(index) - 1]
         task.complete = True
-        print('Task marked as complete.')
+        self.console.print('Task marked as complete.')
 
     
     def remove_task(self):
-        index = input('Please select which task to delete: ')
+        self.print_tasks(self.tasks)
+        index = self.console.input('Please select which task to delete: ')
         self.tasks.pop(int(index) - 1)
-        print('Task successfully deleted.')
+        self.console.print('Task successfully deleted.')
 
 
     def save_tasks(self):
@@ -150,17 +181,16 @@ class TaskManager:
             task.saved = True
         with open(file_path, 'w') as f:
             json.dump(file_data, f, indent=2)
-        print('Tasks saved to tasks.json')
+        self.console.print('Tasks saved to tasks.json')
             
 
     def load_tasks(self):
         file_path = os.path.join(base_dir, 'tasks.json')
-
         unsaved = list(filterfalse(lambda x: x.saved, self.tasks))
-
         choice = None
         if unsaved:
-            choice = input('You have unsaved changes. Save before loading new tasks? (y/n): ')
+            choice = self.console.input('You have unsaved changes.' \
+                            'Save before loading new tasks? (y/n): ')
 
         if choice == 'y':
             for task in unsaved:
@@ -174,32 +204,37 @@ class TaskManager:
                     task = Task(data['title'], parse(data['due_date']), 
                                 data['priority'], data['complete'], saved=True)
                     self.tasks.append(task)
-            print('Tasks loaded from tasks.json')
+            self.console.print('Tasks loaded from tasks.json')
         except FileNotFoundError:
-            print('No tasks saved.')
+            self.console.print('No tasks saved.')
 
     
     def undo(self):
         self.tasks = self.previous_state.tasks
         self.previous_state = self.previous_state.previous_state
-        print('Undo complete.')
+        self.console.print('Undo complete.')
+
 
     def exit(self):
         sys.exit()
 
 
     def run(self):
+        os.system('cls')
         while True:
             self.display_menu()
-            choice = input('Please select an option: ')
-            print('\n')
+
+            choice = self.console.input('Please select an option: ')
             if choice not in ['5,', '6', '7', '8']:
                 self.previous_state = copy.deepcopy(self)
             action = self.choices.get(choice)
+
             if callable(action):
                 action()
             else:
-                print('That is not a valid choice.')
+                self.console.print('That is not a valid choice.')
+            self.console.input('Press enter to return to the menu. \n')
+            os.system('cls')
 
 
 def main():
