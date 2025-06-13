@@ -1,3 +1,16 @@
+"""
+task_manager.py
+
+A command-line task manager that allows users to add, view, sort, 
+complete, delete, save, and load tasks.
+Uses the rich library for formatted terminal output and dateutil 
+for parsing dates.
+
+Tasks are stored in a JSON file named 'tasks.json' in the script directory.
+
+Author: Cameron Ramsey
+Year: 2025
+"""
 
 import copy
 import json
@@ -13,9 +26,23 @@ from rich.table import Table
 
 base_dir = os.path.dirname(__file__)
 
-class Task:
 
-    def __init__(self, id, title, due_date: datetime, priority=1, complete=False, saved=False):
+class Task:
+    """
+    Represents an individual task.
+
+    Attributes:
+        id (int): Unique identifier for the task.
+        title (str): Description or title of the task.
+        due_date (datetime): Due date and time for the task.
+        priority (int): Priority level (1 = high, 2 = medium, 3 = low).
+        _complete (bool): Completion status.
+        saved (bool): Whether the task has been saved to file.
+        dict (dict): Dictionary representation used for JSON serialization.
+    """
+
+    def __init__(self, id, title, due_date: datetime, priority=1, 
+                 complete=False, saved=False):
         self.id = id
         self.title = title
         self.due_date = due_date
@@ -28,23 +55,29 @@ class Task:
                      'priority': self.priority,
                      'complete': self._complete}
 
-
     def __repr__(self):
-        return(f'Task({self.id}, {self.title}, {self.due_date}, {self.priority}, {self._complete})')
+        """Returns a string representation used to recreate the Task object."""
 
+        return(f'Task({self.id}, {self.title}, {self.due_date},' + 
+               f'{self.priority}, {self._complete})')
 
     @property
     def complete(self):
+        """Gets or sets the task's completion status."""
+
         return self._complete
-    
 
     @complete.setter
     def complete(self, completed=True):
         self._complete = completed
         self.dict['complete'] = True
 
-
     def to_json(self):
+        """
+        Appends the task to the tasks.json file.
+        Creates the file if it does not exist.
+        """
+
         file_path = os.path.join(base_dir, 'tasks.json')
         try:
             with open(file_path, 'r') as f:
@@ -57,6 +90,20 @@ class Task:
 
 
 class TaskManager:
+    """
+    Main interface for interacting with the task system via command-line.
+    Handles task creation, display, persistence, and user interaction.
+
+    Attributes:
+        tasks (list[Task]): List of current tasks in memory.
+        previous_state (TaskManager): Deep copy of the previous state (for undo).
+        choices (dict): Maps menu options to corresponding method handlers.
+        next_id (int): Next available task ID.
+
+    Class Attributes:
+        console (rich.Console): Rich console for styled output.
+        table (rich.Table): Static menu table displayed at startup.
+    """
 
     console = Console(style='bold')
     table = Table(title='Task Manager', title_justify='center')
@@ -76,8 +123,9 @@ class TaskManager:
 
     @classmethod
     def display_menu(cls):
-        cls.console.print(cls.table)
+        """Displays the interactive menu using rich's Table."""
 
+        cls.console.print(cls.table)
 
     def __init__(self):
         self.next_id = 0
@@ -91,9 +139,17 @@ class TaskManager:
                         '6': self.load_tasks,
                         '7': self.undo,
                         '8': self.exit}
-        
 
     def get_next_id(self):
+        """
+        Calculates the next available task ID.
+        Checks the existing IDs in the tasks.json file, if it exists.
+
+        Returns:
+            Maximum ID found in tasks.json + 1.
+            0 if tasks.json does not exist.
+        """
+
         file_path = os.path.join(base_dir, 'tasks.json')
         try:
             with open(file_path, 'r') as f:
@@ -109,6 +165,11 @@ class TaskManager:
 
 
     def print_tasks(self, tasks_):
+        """
+        Prints a styled table of tasks to the console.
+        Highlights overdue tasks and completed tasks with color formatting.
+        """
+
         table = Table(title='Tasks', title_justify='center')
         table.add_column('ID')
         table.add_column('Completed', justify='center')
@@ -124,13 +185,19 @@ class TaskManager:
                 style = '#d70000 bold'
             else:
                 style = 'bold'
-            table.add_row(str(task.id), complete, task.due_date.strftime('%d-%m-%Y'), 
-                          task.title, f'{task.priority}', style=style)
+            table.add_row(str(task.id), complete, 
+                          task.due_date.strftime('%d-%m-%Y'), task.title, 
+                          f'{task.priority}', style=style)
 
         self.console.print(table)
 
 
     def view_tasks(self):
+        """
+        Displays all current tasks with optional sorting by due date or priority.
+        Informs the user if there are no tasks.
+        """
+
         if not self.tasks:
             self.console.print('You currently have no tasks.')
             return
@@ -156,6 +223,11 @@ class TaskManager:
         
 
     def add_task(self):
+        """
+        Prompts the user to enter task details and adds a new Task to the list.
+        Increments the ID counter.
+        """
+
         title = self.console.input('Enter title: ')
         while True:
             try:
@@ -180,6 +252,8 @@ class TaskManager:
         
 
     def complete_task(self):
+        """Marks a selected task as complete, based on user input. """
+
         self.print_tasks(self.tasks)
         id = self.console.input('Please select which task to complete: ')
         task_ = None
@@ -190,6 +264,8 @@ class TaskManager:
 
     
     def remove_task(self):
+        """Removes a selected task from the list, based on user input. """
+
         self.print_tasks(self.tasks)
         id = self.console.input('Please select which task to delete: ')
         for task in filter(lambda x: x.id == int(id), self.tasks):
@@ -199,6 +275,12 @@ class TaskManager:
 
 
     def save_tasks(self):
+        """
+        Writes all current tasks to the tasks.json file, overwriting any 
+        previous content.
+        Flags each task as saved.
+        """
+
         file_path = os.path.join(base_dir, 'tasks.json')
         file_data = []
         for task in self.tasks:
@@ -210,6 +292,11 @@ class TaskManager:
             
 
     def load_tasks(self):
+        """
+        Loads tasks from the tasks.json file and replaces current task list.
+        Prompts to save unsaved tasks first if necessary.
+        """
+
         file_path = os.path.join(base_dir, 'tasks.json')
         unsaved = list(filterfalse(lambda x: x.saved, self.tasks))
         choice = None
@@ -238,16 +325,28 @@ class TaskManager:
 
     
     def undo(self):
+        """
+        Restores the previous state of the TaskManager (used before most 
+        user actions).
+        """
+
         self.tasks = self.previous_state.tasks
         self.previous_state = self.previous_state.previous_state
         self.console.print('Undo complete.')
 
 
     def exit(self):
+        """Exits the application."""
+
         sys.exit()
 
 
     def run(self):
+        """
+        Main application loop. Displays the menu and handles user interaction.
+        Refreshes the console screen after each action.
+        """
+
         os.system('cls')
         self.next_id = self.get_next_id()
         while True:
@@ -267,6 +366,11 @@ class TaskManager:
 
 
 def main():
+    """
+    Entry point for the application. 
+    Creates a TaskManager instance and runs it.
+    """
+
     task_manager = TaskManager()
     task_manager.run()
 
